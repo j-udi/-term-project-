@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>온라인 그림판</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        $(document).ready(function () {
+            let color = 'black';
+            let width = 1;
+            let isDrawing = false;
+            let lastX = 0;
+            let lastY = 0;
+            const socket = io.connect();
+            const canvas = document.getElementById('canvas');
+            const context = canvas.getContext('2d');
+
+            canvas.addEventListener('mousedown', (event) => {
+                isDrawing = true;
+                [lastX, lastY] = [event.offsetX, event.offsetY];
+            });
+
+            canvas.addEventListener('mousemove', (event) => {
+                if (!isDrawing) return;
+                context.strokeStyle = color;
+                context.lineWidth = width;
+                context.lineCap = 'round';
+
+                context.beginPath();
+                context.moveTo(lastX, lastY);
+                [lastX, lastY] = [event.offsetX, event.offsetY];
+                context.lineTo(lastX, lastY);
+                context.stroke();
+
+                socket.emit('line', {
+                    x1: lastX,
+                    y1: lastY,
+                    x2: event.offsetX,
+                    y2: event.offsetY,
+                    color: color,
+                    width: width
+                });
+            });
+
+            canvas.addEventListener('mouseup', () => {
+                isDrawing = false;
+            });
+
+            $('#pen').click(function (){
+                width = 1;
+                color = 'black';
+                $('#width').val(width);
+            });
+            $('#eraser').click(function () {
+                width = 10;
+                color = 'white';
+                $('#width').val(width);
+            });
+            $('#width').change(function (){
+                width = $(this).val();
+            });
+
+            socket.on('line', function (data) {
+                context.beginPath();
+                context.moveTo(data.x1, data.y1);
+                context.lineTo(data.x2, data.y2);
+                context.strokeStyle = data.color;
+                context.lineWidth = data.width;
+                context.stroke();
+                context.closePath();
+            });
+        });
+    </script>
+</head>
+<body>
+    <button id="pen">펜</button>
+    <button id="eraser">지우개</button>
+    <input id="width" type="range" min="1" max="10" value="1" />
+    <br />
+    <canvas id="canvas" width="1000" height="600"></canvas>
+</body>
+</html>
